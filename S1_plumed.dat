@@ -1,0 +1,174 @@
+####################################
+# S1_plumed.dat
+# Author: 0xBytefuzz  
+# Email: 0xbytefuzz@gmail.com
+# Purpose:
+#   5-OH reactivity despite intramolecular H-bond locking
+#
+# Scientific question:
+#   Can 5-OH form a catalytic preorganization state even though its H
+#   is initially stabilized by an intramolecular H-bond?
+#
+# Main CVs:
+#   CV1: d_OC1  = d(O5, C1_UDPG)
+#        This keeps track of whether O5 approaches UDPG-C1.
+#
+#   CV2: diff_H = d(H5...O_intra) - d(H5...Nbase)
+#        diff_H < 0 : H5 is closer to the intramolecular O acceptor.
+#        diff_H > 0 : H5 is closer to the catalytic His base.
+#
+# Optimization relative to the original version:
+#   1. Keep the same biased CVs: d_OC1 and diff_H.
+#   2. Add dHmin = min[d(H5,O_intra), d(H5,Nbase)].
+#      This prevents H5 from being simultaneously far from both
+#      the intramolecular acceptor and His base.
+#   3. Slightly tighten d_OC1 upper wall to reduce unproductive sampling
+#      away from the UDPG-C1 donor region.
+####################################
+
+# New independent run: do not use old kernels.
+# For continuation, uncomment RESTART and set OPES RESTART=YES.
+# RESTART
+
+
+# ============================================================
+# (1) MOLECULE DEFINITIONS
+# ============================================================
+protein: GROUP ATOMS=1-7064
+udpg:    GROUP ATOMS=7065-7122
+substr:  GROUP ATOMS=7123-7158
+
+WHOLEMOLECULES ENTITY0=protein ENTITY1=udpg ENTITY2=substr
+
+
+# ============================================================
+# (2) PROTEIN RESTRAINT
+# ============================================================
+# This wall only prevents large global protein drift.
+# If active-site breathing is strongly suppressed, relax AT to 0.60.
+rmsd_protein: RMSD REFERENCE=reference_CA.pdb TYPE=OPTIMAL
+UPPER_WALLS ARG=rmsd_protein AT=0.50 KAPPA=5000 EXP=2 OFFSET=0 LABEL=protein_restraint
+
+
+# ============================================================
+# (3) PRIMARY CVs
+# ============================================================
+
+# O5 ... C1_UDPG distance
+# 7126 = O5
+# 7077 = UDPG C1
+d_OC1: DISTANCE ATOMS=7126,7077
+
+# H5 ... intramolecular H-bond acceptor
+# 7149 = H5
+# 7128 = intramolecular H-bond acceptor O
+d_H_Ointra: DISTANCE ATOMS=7149,7128
+
+# H5 ... catalytic His base
+# 222 = catalytic His base N atom
+d_H_Nbase: DISTANCE ATOMS=7149,222
+
+# diff_H = d(H5,O_intra) - d(H5,Nbase)
+#
+# diff_H < 0:
+#   H5 is closer to the intramolecular O acceptor,
+#   representing the intramolecular H-bond locked state.
+#
+# diff_H > 0:
+#   H5 is closer to His Nbase,
+#   representing the His-activated / catalytic-ready tendency.
+diff_H: COMBINE ARG=d_H_Ointra,d_H_Nbase COEFFICIENTS=1,-1 PERIODIC=NO
+
+# Smooth minimum of the two H-acceptor distances.
+# This prevents H5 from being simultaneously far from both
+# O_intra and His Nbase.
+#
+# dHmin ≈ min[d(H5,O_intra), d(H5,Nbase)]
+dHmin: MATHEVAL ARG=d_H_Ointra,d_H_Nbase VAR=x,y FUNC=0.5*(x+y-sqrt((x-y)^2+0.0001)) PERIODIC=NO
+
+
+# ============================================================
+# (4) MONITORING CVs, NOT BIASED
+# ============================================================
+
+# OH torsion, only for monitoring
+phi_OH: TORSION ATOMS=7149,7126,7129,7127
+
+# Glycosyl-transfer attack angle:
+# O_leaving - C1_UDPG - O5
+# 7091 = leaving oxygen directly connected to C1
+angle_attack: ANGLE ATOMS=7091,7077,7126
+
+# Intramolecular H-bond angle:
+# O5 - H5 - O_intra
+angle_intra: ANGLE ATOMS=7126,7149,7128
+
+# His activation angle:
+# O5 - H5 - Nbase
+angle_base: ANGLE ATOMS=7126,7149,222
+
+# O-H bond monitor
+oh_bond: DISTANCE ATOMS=7126,7149
+
+
+# ============================================================
+# (5) PHYSICAL WALLS
+# ============================================================
+
+# Avoid unphysical O5...C1 over-compression.
+LOWER_WALLS ARG=d_OC1 AT=0.25 KAPPA=5000 EXP=2 LABEL=lower_wall_OC1
+
+# Keep O5 within the UDPG-C1 catalytic donor region.
+# This is NOT the reactive-basin cutoff.
+# Reactive-basin analysis should remain stricter, e.g. d_OC1 < 0.35 nm.
+#
+# If the starting structure already has d_OC1 > 0.60 nm and the wall is too strong,
+# use AT=0.65 KAPPA=1500 instead.
+UPPER_WALLS ARG=d_OC1 AT=0.60 KAPPA=1500 EXP=2 LABEL=upper_wall_OC1
+
+# Allow both the intramolecular H-bond locked state and His-activated state.
+LOWER_WALLS ARG=diff_H AT=-0.60 KAPPA=1000 EXP=2 LABEL=lower_wall_diffH
+UPPER_WALLS ARG=diff_H AT=0.60 KAPPA=1000 EXP=2 LABEL=upper_wall_diffH
+
+# Avoid H5 being simultaneously far from both O_intra and His Nbase.
+# This is a soft physical cage for the H-transfer coordinate, not a His-ready constraint.
+UPPER_WALLS ARG=dHmin AT=0.45 KAPPA=1000 EXP=2 LABEL=upper_wall_dHmin
+
+# Avoid unphysical H...Nbase compression.
+LOWER_WALLS ARG=d_H_Nbase AT=0.12 KAPPA=5000 EXP=2 LABEL=lower_wall_HN
+
+
+# ============================================================
+# (6) 2D OPES_METAD
+# ============================================================
+# Bias only the two mechanistically meaningful CVs:
+#   d_OC1  : O5 approach to UDPG-C1
+#   diff_H : switch from intramolecular H-bond to His activation
+#
+# dHmin is not biased. It only prevents unproductive regions where H5 is
+# far from both possible acceptors.
+OPES_METAD ...
+  LABEL=opes_s1
+  ARG=d_OC1,diff_H
+  FILE=Kernels_S1.data
+  STATE_RFILE=compressed_S1.Kernels
+  STATE_WFILE=compressed_S1.Kernels
+  STATE_WSTRIDE=50000
+  PACE=500
+  BARRIER=60
+  SIGMA=0.02,0.03
+  SIGMA_MIN=0.005,0.005
+  TEMP=298
+  COMPRESSION_THRESHOLD=1
+  RESTART=NO
+... OPES_METAD
+
+
+# ============================================================
+# (7) OUTPUT
+# ============================================================
+PRINT ARG=d_OC1,d_H_Ointra,d_H_Nbase,diff_H,dHmin,phi_OH,angle_attack,angle_intra,angle_base,oh_bond,opes_s1.bias,opes_s1.rct,opes_s1.zed,opes_s1.neff,opes_s1.nker STRIDE=500 FILE=COLVAR_S1 FMT=%12.6f
+
+PRINT ARG=* STRIDE=2000 FILE=COLVAR_all_S1 FMT=%12.6f
+
+FLUSH STRIDE=500

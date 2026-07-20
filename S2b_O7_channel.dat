@@ -1,0 +1,96 @@
+###############################################
+# S2b_O7_channel.dat
+# Author: 0xBytefuzz  
+# Email: 0xbytefuzz@gmail.com
+# Channel-specific OPES for O7 reactivity.
+#
+# Main CV1: d7_C1 = distance(O7, UDPG-C1)
+#   upper wall = 0.65 nm = 6.5 A
+#
+# Main CV2: d7_N = heavy-atom distance(O7, catalytic N/base)
+#   upper wall = 0.45 nm = 4.5 A
+#
+# Angles are monitoring indicators only:
+#   angle7_attack: attack geometry
+#   angle7_base: proton-transfer geometry
+###############################################
+
+# RESTART
+
+UNITS LENGTH=nm TIME=ps ENERGY=kj/mol
+
+protein: GROUP ATOMS=1-7064
+udpg:    GROUP ATOMS=7065-7122
+substr:  GROUP ATOMS=7123-7152
+
+WHOLEMOLECULES ENTITY0=protein ENTITY1=udpg ENTITY2=substr
+
+rmsd_protein: RMSD REFERENCE=reference_CA.pdb TYPE=OPTIMAL
+UPPER_WALLS ARG=rmsd_protein AT=0.50 KAPPA=5000 EXP=2 LABEL=protein_restraint
+
+# Atoms:
+# UDPG C1=7077; catalytic N/base=222; O7=7123; H7=7144; O5=7126; H5=7147; attack ref=7091
+
+d7_C1: DISTANCE ATOMS=7124,7077
+d7_N: DISTANCE ATOMS=7124,222
+d5_C1: DISTANCE ATOMS=7128,7077
+
+delta_OC1: COMBINE ARG=d5_C1,d7_C1 COEFFICIENTS=1,-1 PERIODIC=NO
+dmin_OC1: MATHEVAL ARG=d5_C1,d7_C1 VAR=x,y FUNC=0.5*(x+y-sqrt((x-y)^2+0.0001)) PERIODIC=NO
+
+h7_N: DISTANCE ATOMS=7150,222
+oh7: DISTANCE ATOMS=7124,7150
+angle7_attack: ANGLE ATOMS=7091,7077,7124
+angle7_base: ANGLE ATOMS=7124,7150,222
+
+# Physical walls
+LOWER_WALLS ARG=d7_C1 AT=0.23 KAPPA=10000 EXP=2 LABEL=lower_wall_nuc
+UPPER_WALLS ARG=d7_C1 AT=0.65 KAPPA=4000 EXP=2 LABEL=upper_wall_nuc
+
+LOWER_WALLS ARG=d7_N AT=0.23 KAPPA=10000 EXP=2 LABEL=lower_wall_ptheavy
+UPPER_WALLS ARG=d7_N AT=0.45 KAPPA=4000 EXP=2 LABEL=upper_wall_ptheavy
+
+UPPER_WALLS ARG=d5_C1 AT=1.20 KAPPA=1000 EXP=2 LABEL=upper_wall_otherO
+LOWER_WALLS ARG=h7_N AT=0.12 KAPPA=5000 EXP=2 LABEL=lower_wall_HN
+
+OPES_METAD ...
+  LABEL=opes_s2b_o7
+  ARG=d7_C1,d7_N
+  FILE=Kernels_S2b_O7_channel.data
+  STATE_WFILE=compressed_Kernels_S2b_O7_channel.Kernels
+  STATE_WSTRIDE=50000
+  PACE=500
+  BARRIER=35
+  SIGMA=0.020,0.020
+  SIGMA_MIN=0.005,0.005
+  TEMP=298
+  COMPRESSION_THRESHOLD=1
+  RESTART=NO
+... OPES_METAD
+
+# Restart template:
+# OPES_METAD ...
+#   LABEL=opes_s2b_o7
+#   ARG=d7_C1,d7_N
+#   FILE=Kernels_S2b_O7_channel.data
+#   STATE_RFILE=compressed_Kernels_S2b_O7_channel.Kernels
+#   STATE_WFILE=compressed_Kernels_S2b_O7_channel.Kernels
+#   STATE_WSTRIDE=50000
+#   PACE=500
+#   BARRIER=35
+#   SIGMA=0.020,0.020
+#   SIGMA_MIN=0.005,0.005
+#   TEMP=298
+#   COMPRESSION_THRESHOLD=1
+#   RESTART=YES
+# ... OPES_METAD
+
+PRINT ...
+  ARG=d7_C1,d7_N,d5_C1,delta_OC1,dmin_OC1,h7_N,oh7,angle7_attack,angle7_base,rmsd_protein,opes_s2b_o7.bias,opes_s2b_o7.rct,opes_s2b_o7.zed,opes_s2b_o7.neff,opes_s2b_o7.nker,protein_restraint.bias,lower_wall_nuc.bias,upper_wall_nuc.bias,lower_wall_ptheavy.bias,upper_wall_ptheavy.bias,upper_wall_otherO.bias,lower_wall_HN.bias
+  STRIDE=500
+  FILE=COLVAR_S2b_O7_channel
+  FMT=%12.6f
+... PRINT
+
+PRINT ARG=* STRIDE=2000 FILE=COLVAR_all_S2b_O7_channel FMT=%12.6f
+FLUSH STRIDE=500
