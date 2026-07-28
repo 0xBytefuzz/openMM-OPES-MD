@@ -1,67 +1,162 @@
-# Glycosyltransferase-OPES-MD
-
-**Description:** OPES-MD inputs for studying glycosyltransferase substrate selectivity and intramolecular hydrogen-bond effects.
-
-**Author:** 0xBytefuzz  
-**Email:** 0xbytefuzz@gmail.com
+# PLUMED-Enhanced-Sampling
 
 ## Overview
 
-This repository provides PLUMED input files for running OPES-MD simulations of glycosyltransferase substrate systems.
+This directory contains PLUMED input files and configuration examples for enhanced-sampling molecular dynamics simulations.
 
-The main focus is on substrate selectivity and the influence of intramolecular hydrogen bonding on substrate preorganization.
+The purpose of this collection is to record and organize enhanced-sampling setups, collective variable (CV) definitions, and biasing strategies used in molecular dynamics simulations.
 
-These files are intended for simulation execution only. Trajectory analysis and post-processing workflows are not included.
+The provided files serve as references for:
 
-## Files
+- PLUMED input construction
+- collective variable design
+- enhanced-sampling setup
+- biasing strategy selection
+- simulation workflow organization
 
-| File | Description |
-|---|---|
-| `S1_plumed.dat` | PLUMED input for the S1 system, focusing on 5-OH preorganization and intramolecular H-bond effects. |
-| `S3_plumed.dat` | PLUMED input for the S3 system, focusing on 5-OH preorganization when the alternative site is unavailable or modified. |
-| `S2a_O5_channel.dat` | PLUMED input for the Sub2-O5 channel. |
-| `S2b_O7_channel.dat` | PLUMED input for the Sub2-O7 channel. |
+These examples can be adapted and modified for different molecular dynamics systems.
 
-## Key Collective Variables
+---
 
-The OPES-MD setups mainly use geometry-based collective variables related to:
+## Methods
 
-- nucleophilic approach distance to UDP-Glc C1
-- hydroxyl-proton orientation
-- nucleophilic attack angle
-- proton-transfer angle
-- intramolecular hydrogen-bond tendency
+The input files are mainly based on enhanced-sampling methods implemented in PLUMED, including:
 
-For S1 and S3, `diff_H` is used as a geometric tendency descriptor:
+- OPES (On-the-fly Probability Enhanced Sampling)
+- Metadynamics-based approaches
+- Other PLUMED-supported biasing methods
+
+The selection of enhanced-sampling methods and collective variables depends on the molecular process being investigated.
+
+---
+
+## Collective Variables
+
+The collective variables (CVs) used in these examples are mainly based on structural and geometric descriptors, including:
+
+- interatomic distances
+- hydrogen-bond related coordinates
+- coordination numbers
+- dihedral angles
+- molecular orientation descriptors
+- conformational state descriptors
+- reaction-related geometric parameters
+
+Common CV examples:
 
 ```text
-diff_H = d(HO5 ... O_intra) - d(N_epsilon(His) ... HO5)
+Distance:
+
+d(atom1, atom2)
+
+
+Angle:
+
+θ(atom1, atom2, atom3)
+
+
+Dihedral:
+
+φ(atom1, atom2, atom3, atom4)
 ```
 
-In this definition:
+Composite CVs can also be constructed to describe competing interactions or conformational preferences.
 
-- `diff_H < 0` suggests that the hydroxyl proton tends to stay closer to the intramolecular acceptor.
-- `diff_H > 0` suggests that the hydroxyl proton tends to orient closer to the catalytic His base.
+Example:
 
-This descriptor should be interpreted as a trend in hydrogen-orientation preference, not as direct evidence of proton transfer or reaction occurrence.
+```text
+CV = d1 - d2
+```
+
+Such descriptors represent molecular structural tendencies and conformational preferences. Additional analysis is required for mechanistic interpretation.
+
+---
+
+## Directory Structure
+
+Example:
+
+```
+PLUMED-Enhanced-Sampling/
+
+├── OPES/
+│   ├── system_1/
+│   │   └── plumed.dat
+│   │
+│   └── system_2/
+│       └── plumed.dat
+│
+├── Metadynamics/
+│
+└── README.md
+```
+
+---
 
 ## Usage
 
-Use the corresponding PLUMED input file with an MD engine that supports PLUMED, such as OpenMM + PLUMED, GROMACS + PLUMED, or other compatible workflows.
+The PLUMED input files can be used with molecular dynamics engines supporting PLUMED, including:
+
+- OpenMM + PLUMED
+- GROMACS + PLUMED
+- other compatible MD engines
 
 Example:
 
 ```bash
-plumed driver --plumed S1_plumed.dat
+plumed driver --plumed plumed.dat
 ```
 
-For production simulations, use the PLUMED file together with the corresponding topology, coordinates, and MD engine settings.
+For production simulations, the PLUMED input file should be combined with the corresponding:
 
-## Note
+- topology files
+- coordinate files
+- molecular dynamics parameters
+- simulation environment
 
-These input files are designed for enhanced-sampling simulations. Interpretation of substrate selectivity or catalytic relevance requires additional trajectory analysis and free-energy reconstruction.
+---
+
+## Notes
+
+Enhanced-sampling simulations require careful evaluation of:
+
+- sampling convergence
+- free-energy reconstruction
+- collective variable suitability
+- biasing behavior
+
+The interpretation of simulation results should be supported by appropriate trajectory analysis and structural characterization.
+
+This directory mainly records simulation inputs, CV definitions, and methodological references. Analysis scripts and post-processing workflows are maintained separately.
+
+---
+
+## References
+
+### PLUMED
+
+PLUMED documentation:
+
+https://www.plumed.org/
+
+
+### OPES
+
+Invernizzi, M.  
+On-the-fly probability enhanced sampling (OPES).  
+*Journal of Chemical Theory and Computation.*
+
+
+### Metadynamics
+
+Laio, A.; Parrinello, M.  
+Escaping free-energy minima.  
+*Proceedings of the National Academy of Sciences.*
+
+---
 
 ## Contact
 
-0xBytefuzz  
-0xbytefuzz@gmail.com
+0xBytefuzz
+
+Email: 0xbytefuzz@gmail.com
